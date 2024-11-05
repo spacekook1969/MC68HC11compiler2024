@@ -31,21 +31,6 @@ Dado1 DS 1              ; Valor del Dado 1
 Dado2 DS 1              ; Valor del Dado 2
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 GenerarDado:
     LDX #$FFFF          ; Valor arbitrario de semilla
     LDAA #6             ; Limitar el valor a 6
