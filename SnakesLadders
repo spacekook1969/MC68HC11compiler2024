@@ -7,8 +7,8 @@ Jugador3 DS 1           ; Casilla actual del Jugador 3
 Jugador4 DS 1           ; Casilla actual del Jugador 4
 Jugador5 DS 1           ; Casilla actual del Jugador 5
 
-; Constantes de las serpientes y escaleras
-ESCALERA_1 DB 4, 25     ; Pie y cabeza de la escalera 1
+; Constantes de las escaleras y serpientes
+ESCALERA_1 DB 4, 25
 ESCALERA_2 DB 13, 46
 ESCALERA_3 DB 33, 49
 ESCALERA_4 DB 42, 63
@@ -16,7 +16,7 @@ ESCALERA_5 DB 50, 69
 ESCALERA_6 DB 62, 81
 ESCALERA_7 DB 74, 92
 
-SERPIENTE_1 DB 27, 5    ; Cabeza y cola de la serpiente 1
+SERPIENTE_1 DB 27, 5
 SERPIENTE_2 DB 40, 3
 SERPIENTE_3 DB 43, 18
 SERPIENTE_4 DB 54, 31
@@ -26,10 +26,9 @@ SERPIENTE_7 DB 89, 53
 SERPIENTE_8 DB 99, 41
 
 ; Variables temporales
-TiroDados DS 1          ; Suma de dos dados
-Dado1 DS 1              ; Valor del Dado 1
-Dado2 DS 1              ; Valor del Dado 2
-
+TiroDados DS 1
+Dado1 DS 1
+Dado2 DS 1
 
 GenerarDado:
     LDX #$FFFF          ; Valor arbitrario de semilla
@@ -55,12 +54,24 @@ MoverJugador:
     CMPA #100
     BGT ExcedeLimite    ; Verifica si se pasa de la casilla 100
     STAA ,X             ; Actualiza la posición
+    JSR VerificarVictoria ; Verifica si el jugador ha ganado
     JSR VerificarEscalerasYSerpientes ; Verifica si es serpiente/escalera
     RTS
 
 ExcedeLimite:
     SUBA #100           ; Resta el exceso de casillas sobre 100
     STAA ,X             ; Actualiza la posición
+    RTS
+
+VerificarVictoria:
+    LDAA ,X             ; Carga la posición actual del jugador
+    CMPA #100
+    BNE ContinuarJuego  ; Si no es 100, sigue jugando
+    JSR MostrarVictoria ; Si es 100, muestra el mensaje de victoria
+    RTS
+
+ContinuarJuego:
+    ; Continúa con el juego normalmente
     RTS
 
 VerificarEscalerasYSerpientes:
@@ -104,202 +115,83 @@ VerificarEscalerasYSerpientes:
 
 ; Rutinas para escaleras
 Escalera1:
-    LDAA ESCALERA_1+1   ; Mueve al jugador al tope de la escalera 1
+    LDAA ESCALERA_1+1
     STAA ,X
     RTS
 
 Escalera2:
-    LDAA ESCALERA_2+1   ; Mueve al jugador al tope de la escalera 2
+    LDAA ESCALERA_2+1
     STAA ,X
     RTS
 
 Escalera3:
-    LDAA ESCALERA_3+1   ; Mueve al jugador al tope de la escalera 3
+    LDAA ESCALERA_3+1
     STAA ,X
     RTS
 
 Escalera4:
-    LDAA ESCALERA_4+1   ; Mueve al jugador al tope de la escalera 4
+    LDAA ESCALERA_4+1
     STAA ,X
     RTS
 
 Escalera5:
-    LDAA ESCALERA_5+1   ; Mueve al jugador al tope de la escalera 5
+    LDAA ESCALERA_5+1
     STAA ,X
     RTS
 
 Escalera6:
-    LDAA ESCALERA_6+1   ; Mueve al jugador al tope de la escalera 6
+    LDAA ESCALERA_6+1
     STAA ,X
     RTS
 
 Escalera7:
-    LDAA ESCALERA_7+1   ; Mueve al jugador al tope de la escalera 7
+    LDAA ESCALERA_7+1
     STAA ,X
     RTS
 
 ; Rutinas para serpientes
 Serpiente1:
-    LDAA SERPIENTE_1+1  ; Desciende al jugador a la cola de la serpiente 1
+    LDAA SERPIENTE_1+1
     STAA ,X
     RTS
 
 Serpiente2:
-    LDAA SERPIENTE_2+1  ; Desciende al jugador a la cola de la serpiente 2
+    LDAA SERPIENTE_2+1
     STAA ,X
     RTS
 
 Serpiente3:
-    LDAA SERPIENTE_3+1  ; Desciende al jugador a la cola de la serpiente 3
+    LDAA SERPIENTE_3+1
     STAA ,X
     RTS
 
 Serpiente4:
-    LDAA SERPIENTE_4+1  ; Desciende al jugador a la cola de la serpiente 4
+    LDAA SERPIENTE_4+1
     STAA ,X
     RTS
 
 Serpiente5:
-    LDAA SERPIENTE_5+1  ; Desciende al jugador a la cola de la serpiente 5
+    LDAA SERPIENTE_5+1
     STAA ,X
     RTS
 
 Serpiente6:
-    LDAA SERPIENTE_6+1  ; Desciende al jugador a la cola de la serpiente 6
+    LDAA SERPIENTE_6+1
     STAA ,X
     RTS
 
 Serpiente7:
-    LDAA SERPIENTE_7+1  ; Desciende al jugador a la cola de la serpiente 7
+    LDAA SERPIENTE_7+1
     STAA ,X
     RTS
 
 Serpiente8:
-    LDAA SERPIENTE_8+1  ; Desciende al jugador a la cola de la serpiente 8
+    LDAA SERPIENTE_8+1
     STAA ,X
     RTS
 
-
-
-; Constantes para los nombres de los jugadores (en ASCII)
-Jugador1Nombre DB "Jugador 1"
-Jugador2Nombre DB "Jugador 2"
-Jugador3Nombre DB "Jugador 3"
-Jugador4Nombre DB "Jugador 4"
-Jugador5Nombre DB "Jugador 5"
-
-; Subrutina principal para mover el jugador
-MoverJugador:
-    LDX #Jugador1       ; Selecciona la posición del Jugador 1 (puedes ajustar para otros jugadores)
-    LDAA ,X             ; Carga la posición actual
-    ADDA TiroDados      ; Suma el resultado del tiro de dados
-    CMPA #100
-    BGT ExcedeLimite    ; Si se pasa de la casilla 100, llama a ExcedeLimite para retroceder
-    STAA ,X             ; Actualiza la posición
-    JSR VerificarVictoria ; Verifica si el jugador ha ganado
-    JSR VerificarEscalerasYSerpientes ; Verifica si cae en una escalera o serpiente
-    RTS
-
-ExcedeLimite:
-    SUBA #100           ; Calcula la cantidad de exceso sobre la casilla 100
-    NEGA                ; Toma el valor negativo para retroceder esa cantidad de casillas
-    ADDA ,X             ; Ajusta la posición actual
-    STAA ,X             ; Actualiza la posición
-    RTS
-
-VerificarVictoria:
-    LDAA ,X             ; Carga la posición actual del jugador
-    CMPA #100
-    BNE ContinuarJuego  ; Si no es 100, sigue jugando
-    JSR MostrarVictoria ; Si es 100, muestra el mensaje de victoria
-    RTS
-
-ContinuarJuego:
-    ; Continúa con el juego normalmente
-    RTS
-
 MostrarVictoria:
-    ; Determina el nombre del jugador y muestra el mensaje de victoria en el formato "<nombre> YA GANASTE!!!"
-    ; (Aquí asumimos que el número del jugador está en el acumulador B)
-    CMPB #1
-    BEQ Jugador1Ganador
-    CMPB #2
-    BEQ Jugador2Ganador
-    CMPB #3
-    BEQ Jugador3Ganador
-    CMPB #4
-    BEQ Jugador4Ganador
-    CMPB #5
-    BEQ Jugador5Ganador
-
-Jugador1Ganador:
-    LDX #Jugador1Nombre
-    BRA MostrarGanador
-Jugador2Ganador:
-    LDX #Jugador2Nombre
-    BRA MostrarGanador
-Jugador3Ganador:
-    LDX #Jugador3Nombre
-    BRA MostrarGanador
-Jugador4Ganador:
-    LDX #Jugador4Nombre
-    BRA MostrarGanador
-Jugador5Ganador:
-    LDX #Jugador5Nombre
-
-MostrarGanador:
-    ; Imprime el nombre del jugador seguido de " YA GANASTE!!!"
-    JSR EnviarCadena      ; Muestra el nombre del jugador
-    LDX #MensajeGanador   ; Carga el mensaje de victoria en ASCII
-MostrarLoop:
-    LDAA ,X+             ; Lee el siguiente carácter del mensaje
-    BEQ FinMensaje       ; Si es fin de mensaje (byte nulo), termina
-    JSR EnviarCaracter   ; Enviar el carácter al puerto serial
-    BRA MostrarLoop      ; Repite hasta el final del mensaje
-
-FinMensaje:
+    ; Aquí se implementaría la rutina para mostrar el mensaje de victoria.
+    ; Dependiendo del sistema, se podría llamar una función de display o salida.
     RTS
 
-; Mensaje de victoria
-MensajeGanador:
-    DC.B " YA GANASTE!!!", 0 ; Texto final del mensaje
-
-EnviarCadena:
-    ; Envía una cadena de caracteres en X al puerto serial
-    LDAA ,X+
-    BEQ EnviarCadenaFin
-    JSR EnviarCaracter
-    BRA EnviarCadena
-EnviarCadenaFin:
-    RTS
-
-EnviarCaracter:
-    STAA PORTA           ; Enviar el carácter al puerto serial (ejemplo en PORTA)
-    RTS
-
-; Verificación de la secuencia START en el puerto serial
-VerificarSecuenciaStart:
-    LDX #SecuenciaStart ; Carga la secuencia de caracteres "START"
-    LDY #BufferSerial   ; Asume que los caracteres recibidos están en un buffer
-VerificarStartLoop:
-    LDAA ,X+            ; Lee el carácter de la secuencia "START"
-    CMPA ,Y+            ; Compara con el carácter recibido
-    BNE FinVerificarStart ; Si no coincide, salir
-    CMPA #0             ; Fin de cadena
-    BEQ ReiniciarJuego  ; Si es el fin de la cadena y coincide, reiniciar juego
-    BRA VerificarStartLoop
-
-FinVerificarStart:
-    RTS
-
-ReiniciarJuego:
-    CLR Jugador1        ; Reinicia la posición de todos los jugadores a 0
-    CLR Jugador2
-    CLR Jugador3
-    CLR Jugador4
-    CLR Jugador5
-    RTS
-
-; Secuencia para detectar "START"
-SecuenciaStart:
-    DC.B "START", 0
