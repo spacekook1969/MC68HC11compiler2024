@@ -8,22 +8,22 @@ Jugador4 DS 1           ; Casilla actual del Jugador 4
 Jugador5 DS 1           ; Casilla actual del Jugador 5
 
 ; Constantes de las escaleras y serpientes
-ESCALERA_1 DB 4 25
-ESCALERA_2 DB 13 46
-ESCALERA_3 DB 33 49
-ESCALERA_4 DB 42 63
-ESCALERA_5 DB 50 69
-ESCALERA_6 DB 62 81
-ESCALERA_7 DB 74 92
+ESCALERA_1 DB 4, 25
+ESCALERA_2 DB 13, 46
+ESCALERA_3 DB 33, 49
+ESCALERA_4 DB 42, 63
+ESCALERA_5 DB 50, 69
+ESCALERA_6 DB 62, 81
+ESCALERA_7 DB 74, 92
 
-SERPIENTE_1 DB 27 5
-SERPIENTE_2 DB 40 3
-SERPIENTE_3 DB 43 18
-SERPIENTE_4 DB 54 31
-SERPIENTE_5 DB 66 45
-SERPIENTE_6 DB 76 58
-SERPIENTE_7 DB 89 53
-SERPIENTE_8 DB 99 41
+SERPIENTE_1 DB 27, 5
+SERPIENTE_2 DB 40, 3
+SERPIENTE_3 DB 43, 18
+SERPIENTE_4 DB 54, 31
+SERPIENTE_5 DB 66, 45
+SERPIENTE_6 DB 76, 58
+SERPIENTE_7 DB 89, 53
+SERPIENTE_8 DB 99, 41
 
 ; Variables temporales
 TiroDados DS 1
@@ -31,6 +31,7 @@ Dado1 DS 1
 Dado2 DS 1
 
 GenerarDado:
+    ; Genera un número aleatorio entre 1 y 6 para el dado
     LDX #$FFFF          ; Valor arbitrario de semilla
     LDAA #6             ; Limitar el valor a 6
     IDIV                ; División para limitar el valor
@@ -48,6 +49,7 @@ GenerarSumaDados:
     RTS
 
 MoverJugador:
+    ; Mueve al jugador en función del valor de TiroDados y verifica su nueva posición
     LDX #Jugador1       ; Selecciona la posición del Jugador 1
     LDAA ,X             ; Carga la posición actual
     ADDA TiroDados      ; Suma el resultado del tiro de dados
@@ -59,11 +61,13 @@ MoverJugador:
     RTS
 
 ExcedeLimite:
+    ; Si el jugador pasa de la casilla 100, retrocede el exceso
     SUBA #100           ; Resta el exceso de casillas sobre 100
     STAA ,X             ; Actualiza la posición
     RTS
 
 VerificarVictoria:
+    ; Verifica si el jugador ha llegado exactamente a la casilla 100
     LDAA ,X             ; Carga la posición actual del jugador
     CMPA #100
     BNE ContinuarJuego  ; Si no es 100, sigue jugando
@@ -75,6 +79,7 @@ ContinuarJuego:
     RTS
 
 VerificarEscalerasYSerpientes:
+    ; Verifica si el jugador cae en una escalera o serpiente y ajusta su posición en consecuencia
     LDAA ,X             ; Carga la posición actual
 
     ; Verificar escaleras
@@ -194,4 +199,3 @@ MostrarVictoria:
     ; Aquí se implementaría la rutina para mostrar el mensaje de victoria.
     ; Dependiendo del sistema, se podría llamar una función de display o salida.
     RTS
-
