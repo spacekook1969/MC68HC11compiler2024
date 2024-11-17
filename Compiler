@@ -1,75 +1,45 @@
-# 1. Leer archivo .asc y procesar línea por línea
+# Función para leer el archivo fuente (.asc) y procesar línea por línea
 def leer_archivo_asc(ruta):
-    with open(ruta, 'r', encoding='ansi') as archivo:
-        lineas = archivo.readlines()
-    return lineas
+    try:
+        with open(ruta, 'r', encoding='ansi') as archivo:
+            lineas = archivo.readlines()
+        return lineas
+    except FileNotFoundError:
+        print(f"Error: No se encontró el archivo '{ruta}'.")
+        return []
+    except Exception as e:
+        print(f"Error al leer el archivo: {e}")
+        return []
 
-# 2. Analizar cada línea
+# Función para analizar cada línea del archivo fuente
 def analizar_linea(linea):
-    # Ignorar comentarios y separar por espacios
-    linea_sin_comentario = linea.split(';')[0].strip()
+    linea_sin_comentario = linea.split(';')[0].strip()  # Ignorar comentarios
+    if not linea_sin_comentario:  # Saltar líneas vacías
+        return None
     tokens = linea_sin_comentario.split()
-    return tokens
+    if len(tokens) == 1:  # Sólo mnemónico
+        return {"mnemotico": tokens[0], "operando": None}
+    elif len(tokens) > 1:  # Mnemónico y operando
+        return {"mnemotico": tokens[0], "operando": tokens[1]}
+    return None
 
-# 3. Generar archivos .LST y .S19
-def generar_archivo_lst(tokens, direccion, archivo_lst):
-    """ Genera el archivo LST con la dirección de memoria, opcodes y el ensamblado original.  """
-    # Dirección de memoria en hexadecimal
-    direccion_hex = f"{direccion:04X}"
-    modo = identificar_modo_direccionamiento(tokens['operando'])
-    
-    # Obtener el opcode en hexadecimal
-    opcode_hex = f"{MNEMONICOS[tokens['mnemotico']][modo]:02X}"
-    
-    # Construir línea de salida en el archivo LST
-    linea_lst = f"{direccion_hex} {opcode_hex} ; {tokens['mnemotico']} {tokens['operando']}\n"
-    
-    # Escribir línea en el archivo LST
-    archivo_lst.write(linea_lst)
-def convertir_opcodes_a_enteros(opcodes_hex):
-    """
-    Convierte una lista de opcodes en formato hexadecimal a enteros.
-    """
-    codigo_objeto = []
-    for opcode_hex in opcodes_hex:
-        # Convertir opcode hexadecimal a entero y agregar a codigo_objeto
-        codigo_objeto.append(int(opcode_hex, 16))
-    return codigo_objeto
+# Función para identificar el modo de direccionamiento
+def identificar_modo_direccionamiento(operando):
+    if operando is None:
+        return "inherente"
+    elif operando.startswith("#"):
+        return "inmediato"
+    elif operando.isdigit():
+        return "directo"
+    elif "," in operando:
+        return "indexado"
+    else:
+        return "extendido"
 
-def generar_archivo_s19(codigo_objeto, archivo_s19):
-    """
-    Genera el archivo S19 en formato Motorola para el código objeto.
-    """
-    direccion_inicial = 0x0000
-    for i in range(0, len(codigo_objeto), 16):
-        datos = codigo_objeto[i:i + 16]
-        longitud = len(datos) + 3  # 3 bytes adicionales: dirección (2) + checksum (1)
-        direccion = direccion_inicial + i
-        suma_verificacion = longitud + (direccion >> 8) + (direccion & 0xFF) + sum(datos)
-        suma_verificacion = (~suma_verificacion) & 0xFF
-
-        # Crear registro S19
-        registro = f"S1{longitud:02X}{direccion:04X}" + ''.join(f"{byte:02X}" for byte in datos) + f"{suma_verificacion:02X}\n"
-        archivo_s19.write(registro)
-
-    # Añadir registro de fin de archivo
-    archivo_s19.write("S9\n")
-
-# Lista de opcodes en formato hexadecimal (ejemplo)
-opcodes_hex = ["1A", "2B", "3C"]  # Reemplaza con tus opcodes reales
-
-# Convertir los opcodes a enteros
-codigo_objeto = convertir_opcodes_a_enteros(opcodes_hex)
-
-# Generar el archivo S19 con el código objeto convertido
-with open("archivo.s19", "w") as archivo_s19:
-    generar_archivo_s19(codigo_objeto, archivo_s19)
-
-
-# 4. Detectar errores y verificar la sintaxis
+# Función para verificar errores en la instrucción
 def verificar_errores(tokens):
     if tokens['mnemotico'] not in MNEMONICOS:
-        print(f"Error: Mnemónico desconocido '{tokens['mnemotico']}' en la línea.")
+        print(f"Error: Mnemónico desconocido '{tokens['mnemotico']}'.")
         return False
     modo = identificar_modo_direccionamiento(tokens['operando'])
     if modo not in MNEMONICOS[tokens['mnemotico']]:
@@ -77,132 +47,163 @@ def verificar_errores(tokens):
         return False
     return True
 
+# Función para escribir en el archivo de salida .LST
+def generar_archivo_lst(tokens, direccion, archivo_lst):
+    direccion_hex = f"{direccion:04X}"
+    modo = identificar_modo_direccionamiento(tokens['operando'])
+    
+    # Verificar si el mnemónico y modo existen
+    if tokens['mnemotico'] not in MNEMONICOS or modo not in MNEMONICOS[tokens['mnemotico']]:
+        opcode_hex = "??"  # Indicar error con ??
+    else:
+        opcode_hex = f"{MNEMONICOS[tokens['mnemotico']][modo]:02X}"
+    
+    # Construir la línea del archivo .LST
+    operando_str = tokens['operando'] or ''
+    linea_lst = f"{direccion_hex} {opcode_hex} ; {tokens['mnemotico']} {operando_str}\n"
+    archivo_lst.write(linea_lst)
 
-# 5. Compilador principal
+# Función para convertir opcodes hexadecimales a enteros
+def convertir_opcodes_a_enteros(opcodes_hex):
+    return [int(opcode_hex, 16) for opcode_hex in opcodes_hex]
+
+# Función para generar el archivo S19 en formato Motorola
+def generar_archivo_s19(codigo_objeto, archivo_s19):
+    direccion_inicial = 0x0000
+    for i in range(0, len(codigo_objeto), 16):
+        datos = codigo_objeto[i:i + 16]
+        longitud = len(datos) + 3  # Longitud = datos + dirección + checksum
+        direccion = direccion_inicial + i
+        suma_verificacion = longitud + (direccion >> 8) + (direccion & 0xFF) + sum(datos)
+        suma_verificacion = (~suma_verificacion) & 0xFF
+
+        # Crear el registro S1
+        registro = f"S1{longitud:02X}{direccion:04X}" + ''.join(f"{byte:02X}" for byte in datos) + f"{suma_verificacion:02X}\n"
+        archivo_s19.write(registro)
+
+    # Agregar registro de fin de archivo
+    archivo_s19.write("S9\n")
+
+# Función principal del compilador
 def compilador_mc68hc11(ruta_archivo):
-    # Abrir archivo de entrada y los archivos de salida .LST y .S19
-    with open(ruta_archivo, 'r') as archivo_entrada, \
-         open("salida.lst", 'w') as archivo_lst, \
-         open("salida.s19", 'w') as archivo_s19:
-        
-        direccion_actual = 0x0000  # Dirección de inicio de código objeto
-        codigo_objeto = []  # Lista para almacenar el código objeto
+    lineas = leer_archivo_asc(ruta_archivo)
+    if not lineas:
+        return
 
+    try:
+        with open("salida.lst", 'w') as archivo_lst, open("salida.s19", 'w') as archivo_s19:
+            direccion_actual = 0x0000
+            codigo_objeto = []
 
+            for linea in lineas:
+                tokens = analizar_linea(linea)
+                if not tokens:  # Saltar líneas vacías o comentarios
+                    continue
 
-        for linea in archivo_entrada:
-            tokens = analizar_linea(linea)
-            if tokens:
-                if not verificar_errores(tokens):
-                    continue  # Saltar a la siguiente línea si hay un error
+                if not verificar_errores(tokens):  # Reportar errores en la línea
+                    continue
 
-                # Generar la salida LST
                 generar_archivo_lst(tokens, direccion_actual, archivo_lst)
-
-                # Agregar opcode a código objeto
-                codigo_objeto.append(tokens['opcode'])
-
-                # Incrementar dirección (cada instrucción ocupa 1 byte en este ejemplo)
+                
+                # Obtener el opcode y agregar al código objeto
+                modo = identificar_modo_direccionamiento(tokens['operando'])
+                opcode = MNEMONICOS[tokens['mnemotico']][modo]
+                codigo_objeto.append(opcode)
+                
                 direccion_actual += 1
 
-        # Generar archivo S19
-        generar_archivo_s19(codigo_objeto, archivo_s19)
+            # Generar el archivo S19
+            generar_archivo_s19(codigo_objeto, archivo_s19)
 
+        print("Compilación completada. Archivos 'salida.lst' y 'salida.s19' generados.")
+    except Exception as e:
+        print(f"Error durante la compilación: {e}")
 
-    print("Compilación completada. Archivos 'salida.lst' y 'salida.s19' generados.")
-
-
-
-# 6. Mnemónicos y códigos de operación para el MC68HC11
+# Diccionario de mnemónicos y opcodes 
 MNEMONICOS = {
-    # Carga y almacenamiento
-    "LDAA": {"inmediato": 0x86, "directo": 0x96, "extendido": 0xB6, "indexado": 0xA6},
-    "LDAB": {"inmediato": 0xC6, "directo": 0xD6, "extendido": 0xF6, "indexado": 0xE6},
-    "STAA": {"directo": 0x97, "extendido": 0xB7, "indexado": 0xA7},
-    "STAB": {"directo": 0xD7, "extendido": 0xF7, "indexado": 0xE7},
-    "LDX": {"inmediato": 0xCE, "directo": 0xDE, "extendido": 0xFE, "indexado": 0xEE},
-    "STX": {"directo": 0xDF, "extendido": 0xFF, "indexado": 0xEF},
-    "LDY": {"inmediato": 0x18CE, "directo": 0x18DE, "extendido": 0x18FE, "indexado": 0x18EE},
-    "STY": {"directo": 0x18DF, "extendido": 0x18FF, "indexado": 0x18EF},
-    
-    # Aritmética
+    "ABA": {"inherente": 0x1B},
+    "ADCA": {"inmediato": 0x89, "directo": 0x99, "extendido": 0xB9, "indexado": 0xA9},
+    "ADCB": {"inmediato": 0xC9, "directo": 0xD9, "extendido": 0xF9, "indexado": 0xE9},
     "ADDA": {"inmediato": 0x8B, "directo": 0x9B, "extendido": 0xBB, "indexado": 0xAB},
     "ADDB": {"inmediato": 0xCB, "directo": 0xDB, "extendido": 0xFB, "indexado": 0xEB},
-    "SUBA": {"inmediato": 0x80, "directo": 0x90, "extendido": 0xB0, "indexado": 0xA0},
-    "SUBB": {"inmediato": 0xC0, "directo": 0xD0, "extendido": 0xF0, "indexado": 0xE0},
-    "MUL": {"inherente": 0x3D},
-    "DIV": {"inherente": 0x8D},
-    
-    # Comparación
-    "CMPA": {"inmediato": 0x81, "directo": 0x91, "extendido": 0xB1, "indexado": 0xA1},
-    "CMPB": {"inmediato": 0xC1, "directo": 0xD1, "extendido": 0xF1, "indexado": 0xE1},
-    "CPX": {"inmediato": 0x8C, "directo": 0x9C, "extendido": 0xBC, "indexado": 0xAC},
-    "CPY": {"inmediato": 0x18AC, "directo": 0x18BC, "extendido": 0x18DC, "indexado": 0x18CC},
-    
-    # Lógica
     "ANDA": {"inmediato": 0x84, "directo": 0x94, "extendido": 0xB4, "indexado": 0xA4},
     "ANDB": {"inmediato": 0xC4, "directo": 0xD4, "extendido": 0xF4, "indexado": 0xE4},
-    "ORA": {"inmediato": 0x8A, "directo": 0x9A, "extendido": 0xBA, "indexado": 0xAA},
-    "ORB": {"inmediato": 0xCA, "directo": 0xDA, "extendido": 0xFA, "indexado": 0xEA},
-    "EORA": {"inmediato": 0x88, "directo": 0x98, "extendido": 0xB8, "indexado": 0xA8},
-    "EORB": {"inmediato": 0xC8, "directo": 0xD8, "extendido": 0xF8, "indexado": 0xE8},
-    
-    # Desplazamiento
-    "LSR": {"directo": 0x44, "extendido": 0x74, "indexado": 0x64},
-    "ASR": {"directo": 0x47, "extendido": 0x77, "indexado": 0x67},
-    "LSL": {"directo": 0x48, "extendido": 0x78, "indexado": 0x68},
-    "ROL": {"directo": 0x49, "extendido": 0x79, "indexado": 0x69},
-    
-    # Saltos y llamadas
-    "JMP": {"extendido": 0x7E, "indexado": 0x6E},
-    "JSR": {"extendido": 0xBD, "indexado": 0xAD},
-    "RTS": {"inherente": 0x39},
-    "BRA": {"relativo": 0x20},
-    "BSR": {"relativo": 0x8D},
-    "BEQ": {"relativo": 0x27},
-    "BNE": {"relativo": 0x26},
+    "ASL": {"directo": 0x08, "indexado": 0x68, "extendido": 0x78},
+    "ASLA": {"inherente": 0x48},
+    "ASLB": {"inherente": 0x58},
+    "ASR": {"directo": 0x07, "indexado": 0x67, "extendido": 0x77},
+    "ASRA": {"inherente": 0x47},
+    "ASRB": {"inherente": 0x57},
     "BCC": {"relativo": 0x24},
     "BCS": {"relativo": 0x25},
+    "BEQ": {"relativo": 0x27},
+    "BGE": {"relativo": 0x2C},
+    "BGT": {"relativo": 0x2E},
     "BHI": {"relativo": 0x22},
+    "BITA": {"inmediato": 0x85, "directo": 0x95, "extendido": 0xB5, "indexado": 0xA5},
+    "BITB": {"inmediato": 0xC5, "directo": 0xD5, "extendido": 0xF5, "indexado": 0xE5},
+    "BLE": {"relativo": 0x2F},
     "BLS": {"relativo": 0x23},
-    
-    # Control
+    "BLT": {"relativo": 0x2D},
+    "BMI": {"relativo": 0x2B},
+    "BNE": {"relativo": 0x26},
+    "BPL": {"relativo": 0x2A},
+    "BRA": {"relativo": 0x20},
+    "BRCLR": {"directo": 0x0F},
+    "BRSET": {"directo": 0x0E},
+    "BSR": {"relativo": 0x8D},
+    "CBA": {"inherente": 0x11},
+    "CLC": {"inherente": 0x0C},
+    "CLI": {"inherente": 0x0E},
+    "CLR": {"directo": 0x0F, "indexado": 0x6F, "extendido": 0x7F},
+    "CLRA": {"inherente": 0x4F},
+    "CLRB": {"inherente": 0x5F},
+    "CMPA": {"inmediato": 0x81, "directo": 0x91, "extendido": 0xB1, "indexado": 0xA1},
+    "CMPB": {"inmediato": 0xC1, "directo": 0xD1, "extendido": 0xF1, "indexado": 0xE1},
+    "COM": {"directo": 0x03, "indexado": 0x63, "extendido": 0x73},
+    "COMA": {"inherente": 0x43},
+    "COMB": {"inherente": 0x53},
+    "CPD": {"inmediato": 0x83, "directo": 0x93, "extendido": 0xB3, "indexado": 0xA3},
+    "CPX": {"inmediato": 0x8C, "directo": 0x9C, "extendido": 0xBC, "indexado": 0xAC},
+    "DEC": {"directo": 0x0A, "indexado": 0x6A, "extendido": 0x7A},
+    "DECA": {"inherente": 0x4A},
+    "DECB": {"inherente": 0x5A},
+    "EORA": {"inmediato": 0x88, "directo": 0x98, "extendido": 0xB8, "indexado": 0xA8},
+    "EORB": {"inmediato": 0xC8, "directo": 0xD8, "extendido": 0xF8, "indexado": 0xE8},
+    "INC": {"directo": 0x0C, "indexado": 0x6C, "extendido": 0x7C},
+    "INCA": {"inherente": 0x4C},
+    "INCB": {"inherente": 0x5C},
+    "JMP": {"directo": 0x0E, "indexado": 0x6E, "extendido": 0x7E},
+    "JSR": {"directo": 0x9D, "indexado": 0xAD, "extendido": 0xBD},
+    "LDAA": {"inmediato": 0x86, "directo": 0x96, "extendido": 0xB6, "indexado": 0xA6},
+    "LDAB": {"inmediato": 0xC6, "directo": 0xD6, "extendido": 0xF6, "indexado": 0xE6},
+    "LDD": {"inmediato": 0xCC, "directo": 0xDC, "extendido": 0xFC, "indexado": 0xEC},
+    "LDX": {"inmediato": 0xCE, "directo": 0xDE, "extendido": 0xFE, "indexado": 0xEE},
+    "NEG": {"directo": 0x00, "indexado": 0x60, "extendido": 0x70},
+    "NEGA": {"inherente": 0x40},
+    "NEGB": {"inherente": 0x50},
     "NOP": {"inherente": 0x01},
-    "SEI": {"inherente": 0x0B},
-    "CLI": {"inherente": 0x0A},
+    "ORA": {"inmediato": 0x8A, "directo": 0x9A, "extendido": 0xBA, "indexado": 0xAA},
+    "ORB": {"inmediato": 0xCA, "directo": 0xDA, "extendido": 0xFA, "indexado": 0xEA},
+    "PSHA": {"inherente": 0x36},
+    "PSHB": {"inherente": 0x37},
+    "RTS": {"inherente": 0x39},
+    "SBA": {"inherente": 0x10},
+    "STA": {"directo": 0x97, "extendido": 0xB7, "indexado": 0xA7},
+    "STX": {"directo": 0x9F, "extendido": 0xBF, "indexado": 0xAF},
+    "SUBA": {"inmediato": 0x80, "directo": 0x90, "extendido": 0xB0, "indexado": 0xA0},
+    "SUBB": {"inmediato": 0xC0, "directo": 0xD0, "extendido": 0xF0, "indexado": 0xE0},
     "SWI": {"inherente": 0x3F},
-    "TAP": {"inherente": 0x06},
-    "TPA": {"inherente": 0x07},
-    "TSX": {"inherente": 0x30},
-    "TXS": {"inherente": 0x35},
+    "TBA": {"inherente": 0x17},
+    "TST": {"directo": 0x0D, "indexado": 0x6D, "extendido": 0x7D},
     "TSTA": {"inherente": 0x4D},
     "TSTB": {"inherente": 0x5D},
-    "INCA": {"inherente": 0x4C},
-    "DECA": {"inherente": 0x4A},
-    "INCB": {"inherente": 0x5C},
-    "DECB": {"inherente": 0x5A},
-    "PSHA": {"inherente": 0x36},
-    "PULA": {"inherente": 0x32},
-    "PSHB": {"inherente": 0x37},
-    "PULB": {"inherente": 0x33},
-    
-    # Transferencia
-    "TAB": {"inherente": 0x16},
-    "TBA": {"inherente": 0x17},
-    "XGDX": {"inherente": 0x8F},
-    "XGDY": {"inherente": 0x18AF},
+    "TSX": {"inherente": 0x30},
+    "TXS": {"inherente": 0x35},
 }
 
 
-# 7.  Soporte para Modos de Direccionamiento
-def identificar_modo_direccionamiento(operando):
-    if operando.startswith('#'):
-        return "inmediato"
-    elif operando.endswith(',X'):
-        return "indexado"
-    elif operando == "":
-        return "inherente"
-    elif len(operando) <= 2:  # Asume direccionamiento directo si el operando tiene 1 byte
-        return "directo"
-    else:
-        return "extendido"
+# Ejecución del compilador
+if __name__ == "__main__":
+    ruta_archivo = input("Ingrese la ruta del archivo .asc: ")
+    compilador_mc68hc11(ruta_archivo)
