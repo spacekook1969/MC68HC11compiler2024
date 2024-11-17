@@ -1,4 +1,6 @@
-ORG $1000               ; Dirección de inicio del programa
+ORG $1000               ; Dirección de inicio del programa 
+
+LDS #$1FFF              ; Inicializa el stack pointer en una dirección segura
 
 ; Variables de jugadores
 Jugador1 DS 1           ; Casilla actual del Jugador 1
@@ -71,7 +73,6 @@ VerificarVictoria:
     LDAA ,X             ; Carga la posición actual del jugador
     CMPA #100
     BNE ContinuarJuego  ; Si no es 100, sigue jugando
-    JSR MostrarVictoria ; Si es 100, muestra el mensaje de victoria
     RTS
 
 ContinuarJuego:
@@ -193,9 +194,4 @@ Serpiente7:
 Serpiente8:
     LDAA SERPIENTE_8+1
     STAA ,X
-    RTS
-
-MostrarVictoria:
-    ; Aquí se implementaría la rutina para mostrar el mensaje de victoria.
-    ; Dependiendo del sistema, se podría llamar una función de display o salida.
     RTS
