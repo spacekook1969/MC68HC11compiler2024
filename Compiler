@@ -207,3 +207,56 @@ MNEMONICOS = {
 if __name__ == "__main__":
     ruta_archivo = input("Ingrese la ruta del archivo .asc: ")
     compilador_mc68hc11(ruta_archivo)
+
+
+# Función para generar el archivo S19 en formato Motorola
+def generar_archivo_s19(codigo_objeto, archivo_s19):
+    direccion_inicial = 0x0000
+    for i in range(0, len(codigo_objeto), 16):
+        datos = codigo_objeto[i:i + 16]
+        longitud = len(datos) + 3  # Longitud = datos + dirección + checksum
+        direccion = direccion_inicial + i
+        suma_verificacion = longitud + (direccion >> 8) + (direccion & 0xFF) + sum(datos)
+        suma_verificacion = (~suma_verificacion) & 0xFF
+
+        # Crear el registro S1
+        registro = f"S1{longitud:02X}{direccion:04X}" + ''.join(f"{byte:02X}" for byte in datos) + f"{suma_verificacion:02X}\n"
+        archivo_s19.write(registro)
+
+    # Agregar registro de fin de archivo
+    archivo_s19.write("S9\n")
+
+# Modificación en la función principal del compilador
+def compilador_mc68hc11(ruta_archivo):
+    lineas = leer_archivo_asc(ruta_archivo)
+    if not lineas:
+        return
+
+    try:
+        with open("salida.lst", 'w') as archivo_lst, open("salida.s19", 'w') as archivo_s19:
+            direccion_actual = 0x0000
+            codigo_objeto = []
+
+            for linea in lineas:
+                tokens = analizar_linea(linea)
+                if not tokens:  # Saltar líneas vacías o comentarios
+                    continue
+
+                if not verificar_errores(tokens):  # Reportar errores en la línea
+                    continue
+
+                generar_archivo_lst(tokens, direccion_actual, archivo_lst)
+                
+                # Obtener el opcode y agregar al código objeto
+                modo = identificar_modo_direccionamiento(tokens['operando'])
+                opcode = MNEMONICOS[tokens['mnemotico']][modo]
+                codigo_objeto.append(opcode)
+                
+                direccion_actual += 1
+
+            # Generar el archivo S19
+            generar_archivo_s19(codigo_objeto, archivo_s19)
+
+        print("Compilación completada. Archivos 'salida.lst' y 'salida.s19' generados.")
+    except Exception as e:
+        print(f"Error durante la compilación: {e}")
